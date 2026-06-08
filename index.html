@@ -1,0 +1,224 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <title id="pageTitle">QMast</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Cloudflare Turnstile -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body>
+  <!-- ======== 安装向导 ======== -->
+  <div id="setupScreen" class="auth-screen hidden">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/><polyline points="16 16 12 12 8 16"/></svg>
+      </div>
+      <h1>首次安装</h1>
+      <p class="auth-subtitle" id="setupSubtitle">完成以下步骤即可开始使用</p>
+
+      <!-- 步骤指示器 -->
+      <div class="setup-steps">
+        <span class="step-dot active" data-step="1">1</span>
+        <span class="step-line"></span>
+        <span class="step-dot" data-step="2">2</span>
+        <span class="step-line"></span>
+        <span class="step-dot" data-step="3">3</span>
+      </div>
+
+      <div class="setup-form">
+        <!-- Step 1: Turnstile Site Key -->
+        <div class="setup-step-content" id="setupStep1">
+          <h3>配置人机验证</h3>
+          <p>前往 <a href="https://dash.cloudflare.com/turnstile" target="_blank" style="color:var(--primary)">Cloudflare Turnstile</a> 免费获取密钥</p>
+          <input type="text" id="setupSiteKey" placeholder="Site Key" class="auth-input" style="margin-top:12px">
+          <input type="text" id="setupSecretKey" placeholder="Secret Key" class="auth-input" style="margin-top:8px">
+        </div>
+
+        <!-- Step 2: 管理员账号 -->
+        <div class="setup-step-content hidden" id="setupStep2">
+          <h3>创建管理员账号</h3>
+          <p>用于登录和同步数据</p>
+          <input type="email" id="setupEmail" placeholder="邮箱" class="auth-input" style="margin-top:12px">
+          <input type="password" id="setupPassword" placeholder="密码（至少6位）" class="auth-input" style="margin-top:8px">
+        </div>
+
+        <!-- Step 3: 完成 -->
+        <div class="setup-step-content hidden" id="setupStep3">
+          <h3>安装完成</h3>
+          <p id="setupDoneMsg">即将跳转至登录页面...</p>
+        </div>
+
+        <p id="setupError" class="auth-error hidden"></p>
+        <div class="setup-actions">
+          <button class="btn-text" id="setupBack" style="display:none">上一步</button>
+          <button class="auth-submit" id="setupNext">下一步</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== Auth 界面 ======== -->
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a8 8 0 0 0-8 8c0 5 8 12 8 12s8-7 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <h1>QMast</h1>
+      <p class="auth-subtitle">记录 · 觉察 · 改变</p>
+
+      <div id="authForm" class="auth-form">
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tabLogin">登录</button>
+          <button class="auth-tab" id="tabRegister">注册</button>
+        </div>
+
+        <div class="auth-fields">
+          <input type="email" id="authEmail" placeholder="邮箱" class="auth-input" autocomplete="email">
+          <input type="password" id="authPassword" placeholder="密码（至少6位）" class="auth-input" autocomplete="password">
+          <div id="turnstileWidget" class="cf-turnstile" data-theme="auto"></div>
+          <p id="authError" class="auth-error hidden"></p>
+          <button id="authSubmitBtn" class="auth-submit">登录</button>
+          <p class="auth-hint" id="authHint">数据加密同步，保护隐私</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== 主界面 ======== -->
+  <div id="app" class="app hidden">
+    <header class="app-header">
+      <div class="header-left">
+        <h1 id="appTitle">QMast</h1>
+      </div>
+      <div class="header-right">
+        <span id="syncStatus" class="sync-status" title="同步状态">●</span>
+        <button id="settingsBtn" class="icon-btn" data-lucide="settings"></button>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <!-- 统计 -->
+      <div class="stats-row" id="statsRow">
+        <div class="stat-item"><span class="stat-num" id="todayCount">0</span><span class="stat-lbl">今日</span></div>
+        <div class="stat-item"><span class="stat-num" id="weekCount">0</span><span class="stat-lbl">本周</span></div>
+        <div class="stat-item"><span class="stat-num" id="cleanDays">0</span><span class="stat-lbl">清净</span></div>
+      </div>
+
+      <!-- 周目标进度条 -->
+      <div class="goal-bar" id="goalBar">
+        <div class="goal-label"><span>周目标</span><span id="goalText">0/2</span></div>
+        <div class="goal-track"><div class="goal-fill" id="goalFill"></div></div>
+      </div>
+
+      <!-- 打卡按钮 -->
+      <button id="checkInBtn" class="checkin-btn">
+        <span data-lucide="plus" class="checkin-icon"></span>
+        <span id="checkinText">记录一次</span>
+      </button>
+
+      <!-- 最近一条 -->
+      <div id="lastRecordBar" class="last-record hidden">
+        <span>最近: <strong id="lastRecordTime"></strong></span>
+        <span id="lastRecordTriggers"></span>
+        <button class="btn-text" id="editLastBtn">编辑</button>
+        <button class="btn-text" id="deleteLastBtn" style="color:#e74c3c">删除</button>
+      </div>
+
+      <!-- 历史记录 -->
+      <div class="section">
+        <div class="section-header"><h3>记录</h3><button class="btn-text" id="clearHistoryBtn">清空</button></div>
+        <div id="historyList" class="history-list"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ======== 编辑弹窗 ======== -->
+  <div id="editModal" class="modal hidden">
+    <div class="modal-content small">
+      <h3>编辑触发因素</h3>
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:12px" id="editTargetTime"></p>
+      <div class="triggers-grid" id="editTriggersGrid">
+        <button class="trigger-tag" data-trigger="无聊">无聊</button>
+        <button class="trigger-tag" data-trigger="压力">压力</button>
+        <button class="trigger-tag" data-trigger="失眠">失眠</button>
+        <button class="trigger-tag" data-trigger="刷手机">刷手机</button>
+        <button class="trigger-tag" data-trigger="焦虑">焦虑</button>
+        <button class="trigger-tag" data-trigger="独处">独处</button>
+        <button class="trigger-tag" data-trigger="疲劳">疲劳</button>
+        <button class="trigger-tag" data-trigger="其他">其他</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn-sm" id="editCancel" style="flex:1">取消</button>
+        <button class="btn-sm" id="editSave" style="flex:1;background:var(--primary);color:#fff;border:none">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== 周报弹窗 ======== -->
+  <div id="weeklyModal" class="modal hidden">
+    <div class="modal-content small">
+      <h3>本周总结</h3>
+      <div id="weeklyContent" style="font-size:14px;color:var(--text-2);line-height:2"></div>
+      <button class="modal-confirm" id="weeklyConfirm">知道了</button>
+    </div>
+  </div>
+
+  <!-- ======== 警告弹窗 ======== -->
+  <div id="warningModal" class="modal hidden">
+    <div class="modal-content warning">
+      <div class="modal-icon-top"><span data-lucide="alert-circle" class="warning-icon"></span></div>
+      <h2 id="warningTitle">温馨提醒</h2>
+      <div class="modal-body">
+        <p id="warningMsg"></p>
+        <ul id="warningTips">
+          <li>过度可能影响精力、情绪与专注力</li>
+          <li>建议规律作息，增加运动与社交</li>
+          <li>培养兴趣，转移注意力</li>
+        </ul>
+        <p class="encourage">觉察即改变，您并不孤单。</p>
+      </div>
+      <button class="modal-confirm" id="warningConfirm">我知道了</button>
+    </div>
+  </div>
+
+  <!-- ======== 设置 ======== -->
+  <div id="settingsOverlay" class="settings-overlay hidden">
+    <div class="settings-panel">
+      <div class="settings-header">
+        <h2>设置</h2>
+        <button id="settingsClose" class="modal-close">&times;</button>
+      </div>
+      <div class="settings-body">
+        <div class="setting-group">
+          <h3>外观</h3>
+          <div class="setting-row"><span>深色模式</span><label class="toggle"><input type="checkbox" id="darkModeToggle"><span class="slider"></span></label></div>
+        </div>
+        <div class="setting-group">
+          <h3>提醒阈值</h3>
+          <div class="setting-row"><span>每日触发</span><input type="number" id="dailyThreshold" min="1" max="10" class="num-input"></div>
+          <div class="setting-row"><span>每周触发</span><input type="number" id="weeklyThreshold" min="1" max="20" class="num-input"></div>
+          <div class="setting-row"><span>周目标（≤次）</span><input type="number" id="weeklyGoal" min="0" max="20" class="num-input"></div>
+        </div>
+        <div class="setting-group">
+          <h3>账号</h3>
+          <div class="setting-row"><span><span id="settingsEmail"></span></span><button class="btn-sm" id="logoutBtn">退出登录</button></div>
+        </div>
+        <div class="setting-group">
+          <h3>数据</h3>
+          <div class="setting-row"><span>导出</span><button class="btn-sm" id="exportBtn">导出</button></div>
+          <div class="setting-row"><span>导入</span><button class="btn-sm" id="importBtn">导入</button><input type="file" id="importFile" accept=".json" hidden></div>
+          <div class="setting-row danger"><span>清除所有数据</span><button class="btn-sm btn-danger" id="clearDataBtn">清除</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
